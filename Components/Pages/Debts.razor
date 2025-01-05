@@ -1,0 +1,93 @@
+﻿@page "/debts"
+@using TransactionTracker.Model
+@inject ITransactionService TransactionService
+
+<h3>Debt Management</h3>
+
+<!-- Display Total Credit -->
+<div>
+    <h4>Total Credit Available: @totalCredit</h4>
+</div>
+
+<!-- Display Pending Debts -->
+@if (debts != null && debts.Count > 0)
+{
+    <h4>Pending Debts</h4>
+    <div class="debt-table">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Transaction ID</th>
+                    <th>Amount</th>
+                    <th>Transaction Date</th>
+                    <th>Notes</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var debt in debts)
+                {
+                    <tr>
+                        <td>@debt.TransactionId</td>
+                        <td>@debt.Amount</td>
+                        <td>@debt.TransactionDate.ToShortDateString()</td>
+                        <td>@debt.Notes</td>
+                        <td>
+                            <!-- Clear debt button -->
+                            <button class="btn btn-warning" @onclick="() => HandleDebtClearing(debt)">Clear Debt</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <p>No pending debts found.</p>
+}
+
+@code {
+    private List<Transaction> debts;
+    private decimal totalCredit;
+
+    // On Page Load, get all transactions and calculate total credit
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch all transactions
+        var transactions = await TransactionService.GetAllTransactionsAsync();
+
+        // Get pending debts
+        debts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes == "Pending Debt").ToList();
+
+        // Get the total credit amount
+        totalCredit = transactions.Where(t => t.TransactionType == "Credit").Sum(t => t.Amount);
+    }
+
+    // Handle clearing of debt
+    private async Task HandleDebtClearing(Transaction debtTransaction)
+    {
+        // Check if enough credit is available to clear the debt
+        if (totalCredit >= debtTransaction.Amount)
+        {
+            // Update debt to cleared
+            debtTransaction.Notes = "Debt Cleared";
+            debtTransaction.Amount = 0;
+
+            // Reduce total credit
+            totalCredit -= debtTransaction.Amount;
+
+            // Save the updated transaction
+            await TransactionService.AddTransactionAsync(debtTransaction);
+
+            // Refresh the debt list
+            var transactions = await TransactionService.GetAllTransactionsAsync();
+            debts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes == "Pending Debt").ToList();
+        }
+        else
+        {
+            // Handle case where there is not enough credit
+            Console.WriteLine("Insufficient credit to clear debt.");
+        }
+    }
+}

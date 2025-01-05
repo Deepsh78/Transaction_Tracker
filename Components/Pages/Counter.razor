@@ -1,0 +1,71 @@
+﻿@page "/counter"
+@using TransactionTracker.Model
+@inject ITransactionService TransactionService
+@inject ITagsService TagsService
+
+<h3>Transactions</h3>
+
+<EditForm Model="newTransaction" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label for="TransactionType">Transaction Type</label>
+        <InputText id="TransactionType" class="form-control" @bind-Value="newTransaction.TransactionType" />
+    </div>
+
+    <div class="form-group">
+        <label for="Amount">Amount</label>
+        <InputNumber id="Amount" class="form-control" @bind-Value="newTransaction.Amount" />
+    </div>
+
+    <div class="form-group">
+        <label for="TransactionDate">Transaction Date</label>
+        <InputDate id="TransactionDate" class="form-control" @bind-Value="newTransaction.TransactionDate" />
+    </div>
+
+    <div class="form-group">
+        <label for="Notes">Notes</label>
+        <InputText id="Notes" class="form-control" @bind-Value="newTransaction.Notes" />
+    </div>
+
+    <div class="form-group">
+        <label for="Tag">Tag</label>
+        <select id="Tag" class="form-control" @bind="newTransaction.TagId">
+            <option value="">-- Select a Tag --</option>
+            @foreach (var tag in tagsList)
+            {
+                <option value="@tag.TagId">@tag.TagName</option>
+            }
+        </select>
+    </div>
+
+    <div class="form-group" style="display: @(newTransaction.TagId == null ? "block" : "none")">
+        <label for="CustomTag">Custom Tag</label>
+        <InputText id="CustomTag" class="form-control" @bind-Value="newTransaction.CustomTag" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add Transaction</button>
+</EditForm>
+
+@code {
+    private List<Tags> tagsList = new List<Tags>();  // List to hold predefined tags
+    private Transaction newTransaction = new Transaction();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch predefined tags from the service (you can replace this with your own service call)
+        tagsList = await TagsService.GetTagsAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (!string.IsNullOrEmpty(newTransaction.CustomTag))
+        {
+            // If the user has entered a custom tag, use it instead of the TagId
+            newTransaction.TagId = null;  // Clear the TagId since we're using a custom tag
+        }
+
+        await TransactionService.AddTransactionAsync(newTransaction);  // Add the transaction
+    }
+}
