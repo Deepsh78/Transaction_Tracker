@@ -2,44 +2,47 @@
 @using TransactionTracker.Model
 @inject ITransactionService TransactionService
 
-@* Place CSS directly in the Razor component *@
 <style>
     .dashboard-container {
         margin: 30px;
-    }
-
-    .dashboard-header {
-        text-align: center;
-        font-size: 32px;
-        font-weight: bold;
-        margin-bottom: 20px;
-    }
-
-    .card-container {
         display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
+        flex-direction: column;
+        gap: 20px;
     }
 
-    .dashboard-card {
-        width: 23%;
+    .filter-container {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .statistics-box, .transactions-box {
+        display: flex;
+        flex-direction: row;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .box {
+        flex: 1;
+        min-width: 300px;
         padding: 20px;
         background-color: #f8f9fa;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        text-align: center;
     }
 
-        .dashboard-card h5 {
-            font-size: 18px;
-            color: #333;
-        }
+    .box-header {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
 
-        .dashboard-card h2 {
-            font-size: 36px;
-            font-weight: bold;
-            color: #000;
-        }
+    .box-content {
+        font-size: 16px;
+        line-height: 1.6;
+    }
 
     .transaction-container {
         display: flex;
@@ -75,118 +78,133 @@
 </style>
 
 <div class="dashboard-container">
-    <h1 class="dashboard-header">Transaction Dashboard</h1>
+    <!-- Date Range Filter -->
+    <div class="filter-container">
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" @bind="startDate" />
 
-    <!-- Summary Cards -->
-    <div class="card-container">
-        <div class="dashboard-card bg-success">
-            <h5>Total Credit</h5>
-            <h2>@totalCredit</h2>
-        </div>
-        <div class="dashboard-card bg-danger">
-            <h5>Total Debit</h5>
-            <h2>@totalDebit</h2>
-        </div>
-        <div class="dashboard-card bg-warning">
-            <h5>Total Debt</h5>
-            <h2>@totalDebt</h2>
-        </div>
-        <div class="dashboard-card bg-info">
-            <h5>Net Balance</h5>
-            <h2>@totalBalance</h2>
-        </div>
+        <label for="endDate">End Date:</label>
+        <input type="date" id="endDate" @bind="endDate" />
+
+        <button @onclick="ApplyFilters">Apply Filters</button>
     </div>
 
-    <!-- Transaction Details -->
-    <h3>Transaction Details</h3>
-    <div class="transaction-container">
-        <div class="transaction-card">
-            <p>Highest Transaction</p>
-            <h3>@highestTransaction?.Amount</h3>
-        </div>
-        <div class="transaction-card">
-            <p>Lowest Transaction</p>
-            <h3>@lowestTransaction?.Amount</h3>
-        </div>
-        <div class="transaction-card">
-            <p>Most Recent Transaction</p>
-            <h3>@mostRecentTransaction?.Amount</h3>
-        </div>
-    </div>
-
-    <!-- List of Transactions -->
-    <h3>All Transactions</h3>
-    <div class="transaction-container">
-        @foreach (var transaction in transactions)
-        {
-            <div class="transaction-card">
-                <div>
-                    <p><strong>@transaction.TransactionType</strong></p>
-                    <p>@transaction.TransactionDate.ToString("yyyy-MM-dd")</p>
-                    <p>Amount: @transaction.Amount</p>
-                </div>
-                <div>
-                    <p class="@(transaction.TransactionType == "Credit" ? "text-success" : transaction.TransactionType == "Debit" ? "text-danger" : "text-warning")">
-                        @transaction.TransactionType
-                    </p>
-                </div>
+    <!-- Statistics and Pending Debts -->
+    <div class="statistics-box">
+        <!-- Statistics Box -->
+        <div class="box">
+            <div class="box-header">Statistics</div>
+            <div class="box-content">
+                <p>Total Cash Inflows: <strong>@totalCashInflows</strong></p>
+                <p>Total Cash Outflows: <strong>@totalCashOutflows</strong></p>
+                <p>Total Debts: <strong>@totalDebts</strong></p>
+                <p>Cleared Debts: <strong>@clearedDebts</strong></p>
+                <p>Remaining Debts: <strong>@remainingDebts</strong></p>
             </div>
-        }
+        </div>
+
+        <!-- Pending Debts Box -->
+        <div class="box">
+            <div class="box-header">Pending Debts</div>
+            <div class="transaction-container">
+                @if (pendingDebts.Any())
+                {
+                    @foreach (var debt in pendingDebts)
+                    {
+                        <div class="transaction-card">
+                            <p><strong>Debt: </strong>@debt.Amount</p>
+                            <p><strong>Due Date:</strong> @debt.TransactionDate.ToString("yyyy-MM-dd")</p>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p>No pending debts found.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Transactions -->
+    <div class="transactions-box">
+        <div class="box">
+            <div class="box-header">Top 5 Highest Transactions</div>
+            <div class="transaction-container">
+                @foreach (var transaction in transactions.OrderByDescending(t => t.Amount).Take(5))
+                {
+                    <div class="transaction-card">
+                        <p><strong>@transaction.TransactionType</strong></p>
+                        <p>@transaction.TransactionDate.ToString("yyyy-MM-dd")</p>
+                        <p>Amount: @transaction.Amount</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="box">
+            <div class="box-header">Top 5 Lowest Transactions</div>
+            <div class="transaction-container">
+                @foreach (var transaction in transactions.OrderBy(t => t.Amount).Take(5))
+                {
+                    <div class="transaction-card">
+                        <p><strong>@transaction.TransactionType</strong></p>
+                        <p>@transaction.TransactionDate.ToString("yyyy-MM-dd")</p>
+                        <p>Amount: @transaction.Amount</p>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 </div>
 
 @code {
     private List<Transaction> transactions = new List<Transaction>();
-    private decimal totalCredit;
-    private decimal totalDebit;
-    private decimal totalDebt;
-    private decimal totalBalance;
+    private List<Transaction> pendingDebts = new List<Transaction>();
+    private decimal totalCashInflows;
+    private decimal totalCashOutflows;
+    private decimal totalDebts;
+    private decimal clearedDebts;
+    private decimal remainingDebts;
+    private DateTime? startDate;
+    private DateTime? endDate;
 
-    private Transaction highestTransaction;
-    private Transaction lowestTransaction;
-    private Transaction mostRecentTransaction;
-
-    // On Page Load, get all transactions
     protected override async Task OnInitializedAsync()
     {
         transactions = await TransactionService.GetAllTransactionsAsync();
-        CalculateTotals();
-        FindTransactionStats();
+        CalculateStatistics();
+        FilterPendingDebts();
     }
 
-    private void CalculateTotals()
+    private void ApplyFilters()
     {
-        if (transactions != null)
+        // Filter transactions by date range
+        var filteredTransactions = transactions;
+        if (startDate.HasValue)
         {
-            totalCredit = transactions
-                .Where(t => t.TransactionType == "Credit")
-                .Sum(t => t.Amount);
-
-            totalDebit = transactions
-                .Where(t => t.TransactionType == "Debit")
-                .Sum(t => t.Amount);
-
-            totalDebt = transactions
-                .Where(t => t.TransactionType == "Debt")
-                .Sum(t => t.Amount);
-
-            // Calculate total balance (inflows + debts - outflows)
-            totalBalance = totalCredit + totalDebt - totalDebit;
+            filteredTransactions = filteredTransactions.Where(t => t.TransactionDate >= startDate.Value).ToList();
         }
+        if (endDate.HasValue)
+        {
+            filteredTransactions = filteredTransactions.Where(t => t.TransactionDate <= endDate.Value).ToList();
+        }
+
+        // Recalculate statistics and debts based on filtered transactions
+        transactions = filteredTransactions;
+        CalculateStatistics();
+        FilterPendingDebts();
     }
 
-    private void FindTransactionStats()
+    private void CalculateStatistics()
     {
-        if (transactions != null && transactions.Any())
-        {
-            // Find the highest transaction by amount
-            highestTransaction = transactions.OrderByDescending(t => t.Amount).FirstOrDefault();
+        totalCashInflows = transactions.Where(t => t.TransactionType == "Credit").Sum(t => t.Amount);
+        totalCashOutflows = transactions.Where(t => t.TransactionType == "Debit").Sum(t => t.Amount);
+        totalDebts = transactions.Where(t => t.TransactionType == "Debt").Sum(t => t.Amount);
+        clearedDebts = transactions.Where(t => t.TransactionType == "Debt" && t.Amount == 0).Sum(t => t.Amount);
+        remainingDebts = totalDebts - clearedDebts;
+    }
 
-            // Find the lowest transaction by amount
-            lowestTransaction = transactions.OrderBy(t => t.Amount).FirstOrDefault();
-
-            // Find the most recent transaction
-            mostRecentTransaction = transactions.OrderByDescending(t => t.TransactionDate).FirstOrDefault();
-        }
+    private void FilterPendingDebts()
+    {
+        pendingDebts = transactions.Where(t => t.TransactionType == "Debt" && t.Amount > 0).ToList();
     }
 }
