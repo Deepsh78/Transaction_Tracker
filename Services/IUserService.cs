@@ -9,10 +9,18 @@ namespace TransactionTracker.Services
 {
     public interface IUserService
     {
-        Task LoadUsersAsync(); // Load users from file
-        Task SaveUsersAsync(); // Save users to file
-        Task<bool> AuthenticateAsync(Users user); // Authenticate user credentials
-        string HashPassword(string password);
-        Task ViewUsersJsonAsync();// Hash a password for secure storage
-    }
+        // Initialize users, loading from a file if it exists
+        Task InitializeAsync();
+
+        // Load users from the JSON file
+        Task LoadUsersAsync();
+
+        // Save users to the JSON file
+        Task SaveUsersAsync();
+
+        // Authenticate the user (verify username and password)
+        Task<bool> AuthenticateAsync(Users user);
+
+        Task LogoutAsync();
+            }
 }

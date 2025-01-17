@@ -4,90 +4,232 @@
 
 <h3>Debt Management</h3>
 
-<!-- Display Total Credit -->
 <div>
     <h4>Total Credit Available: @totalCredit</h4>
 </div>
 
-<!-- Display Pending Debts -->
 @if (debts != null && debts.Count > 0)
 {
     <h4>Pending Debts</h4>
-    <div class="debt-table">
-        <table class="table">
-            <thead>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Amount</th>
+                <th>Due Date</th>
+                <th>Notes</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var debt in debts)
+            {
                 <tr>
-                    <th>Transaction ID</th>
-                    <th>Amount</th>
-                    <th>Transaction Date</th>
-                    <th>Notes</th>
-                    <th>Action</th>
+                    <td>@debt.Amount</td>
+                    <td>@debt.DueDate?.ToShortDateString()</td>
+                    <td>@debt.Notes</td>
+                    <td>
+                        <button class="btn btn-warning" @onclick="() => HandleDebtClearing(debt)">Clear Debt</button>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach (var debt in debts)
-                {
-                    <tr>
-                        <td>@debt.TransactionId</td>
-                        <td>@debt.Amount</td>
-                        <td>@debt.TransactionDate.ToShortDateString()</td>
-                        <td>@debt.Notes</td>
-                        <td>
-                            <!-- Clear debt button -->
-                            <button class="btn btn-warning" @onclick="() => HandleDebtClearing(debt)">Clear Debt</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+            }
+        </tbody>
+    </table>
 }
 else
 {
     <p>No pending debts found.</p>
 }
 
+@if (showInsufficientCreditModal)
+{
+    <div class="modal">
+        <div class="modal-content">
+            <h5>Insufficient Credit</h5>
+            <p>You do not have enough credit to clear this debt.</p>
+            <button @onclick="CloseModal">Close</button>
+        </div>
+    </div>
+}
+
+<style>
+    .transaction-list-container {
+        padding: 20px;
+        margin: 10px;
+        background-color: #f4f6f9;
+        border-radius: 8px;
+    }
+
+    .filters {
+        margin-bottom: 1rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        background-color: #fff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+        .filters label {
+            font-size: 1rem;
+            color: #333;
+        }
+
+        .filters select,
+        .filters input {
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            width: 180px;
+        }
+
+    .filter-action {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+    .transaction-box {
+        padding: 20px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #fff;
+        box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 1rem;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        table th,
+        table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #f2f2f2;
+        }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-dialog {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 500px;
+        width: 100%;
+        z-index: 1001;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-body {
+        margin-top: 10px;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+        .modal-footer button {
+            margin-top: 10px;
+        }
+
+</style>
 @code {
     private List<Transaction> debts;
     private decimal totalCredit;
+    private bool showInsufficientCreditModal = false;
 
-    // On Page Load, get all transactions and calculate total credit
     protected override async Task OnInitializedAsync()
     {
-        // Fetch all transactions
-        var transactions = await TransactionService.GetAllTransactionsAsync();
-
-        // Get pending debts
-        debts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes == "Pending Debt").ToList();
-
-        // Get the total credit amount
-        totalCredit = transactions.Where(t => t.TransactionType == "Credit").Sum(t => t.Amount);
+        await LoadTransactions();
     }
 
-    // Handle clearing of debt
+    private async Task LoadTransactions()
+    {
+        // Load all transactions
+        var transactions = await TransactionService.GetAllTransactionsAsync();
+
+        // Filter out cleared debts
+        debts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes != "Cleared").ToList();
+
+        // Calculate total credit by summing the amounts of all 'Credit' transactions
+        totalCredit = transactions
+            .Where(t => t.TransactionType == "Credit")
+            .Sum(t => t.Amount);
+
+        // Subtract the cleared debts from the total credit
+        var clearedDebtsAmount = transactions
+            .Where(t => t.TransactionType == "Debt" && t.Notes == "Cleared")
+            .Sum(t => t.Amount);
+
+        totalCredit -= clearedDebtsAmount; // Subtract cleared debts from total credit
+    }
+
     private async Task HandleDebtClearing(Transaction debtTransaction)
     {
-        // Check if enough credit is available to clear the debt
-        if (totalCredit >= debtTransaction.Amount)
+        decimal debtAmountBeforeClearing = debtTransaction.Amount;
+
+        if (totalCredit >= debtAmountBeforeClearing)
         {
-            // Update debt to cleared
-            debtTransaction.Notes = "Debt Cleared";
-            debtTransaction.Amount = 0;
+            // Subtract the debt amount from total credit
+            totalCredit -= debtAmountBeforeClearing;
 
-            // Reduce total credit
-            totalCredit -= debtTransaction.Amount;
+            // Mark the debt as cleared
+            debtTransaction.Notes = "Cleared";
 
-            // Save the updated transaction
-            await TransactionService.AddTransactionAsync(debtTransaction);
+            // Update the transaction in the database
+            await TransactionService.UpdateTransactionAsync(debtTransaction);
 
-            // Refresh the debt list
-            var transactions = await TransactionService.GetAllTransactionsAsync();
-            debts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes == "Pending Debt").ToList();
+            // Reload the transactions and updated credit
+            await LoadTransactions();
         }
         else
         {
-            // Handle case where there is not enough credit
-            Console.WriteLine("Insufficient credit to clear debt.");
+            showInsufficientCreditModal = true;
         }
+    }
+
+    private void CloseModal()
+    {
+        showInsufficientCreditModal = false;
     }
 }

@@ -1,0 +1,96 @@
+﻿@page "/edit-transaction/{transactionId}"
+@using TransactionTracker.Model
+@inject ITransactionService TransactionService
+@inject NavigationManager NavigationManager
+
+<Layout>
+    <div class="transaction-edit-container">
+        <h3>Edit Transaction</h3>
+        
+        @if (transaction == null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            <EditForm Model="transaction" OnValidSubmit="HandleEditSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                
+                <div class="form-group">
+                    <label for="TransactionType">Transaction Type</label>
+                    <select id="TransactionType" class="form-control" @bind="transaction.TransactionType">
+                        <option value="Debt">Debt</option>
+                        <option value="Debit">Debit</option>
+                        <option value="Credit">Credit</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="Amount">Amount</label>
+                    <InputNumber id="Amount" class="form-control" @bind-Value="transaction.Amount" />
+                </div>
+
+                <div class="form-group">
+                    <label for="Notes">Notes</label>
+                    <InputText id="Notes" class="form-control" @bind-Value="transaction.Notes" />
+                </div>
+
+                @if (transaction.TransactionType == "Debt")
+                {
+                    <div class="form-group">
+                        <label for="DueDate">Due Date</label>
+                        <InputDate id="DueDate" class="form-control" @bind-Value="transaction.DueDate" />
+                    </div>
+                }
+
+                @if (transaction.TransactionType == "Debt")
+                {
+                    <div class="form-group">
+                        <label for="Source">Source</label>
+                        <InputText id="Source" class="form-control" @bind-Value="transaction.Source" />
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </EditForm>
+        }
+    </div>
+</Layout>
+
+@code {
+    [Parameter] public string transactionId { get; set; }
+    private Transaction transaction;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Guid.TryParse(transactionId, out var id))
+        {
+            // Fetch the transaction by its ID
+            transaction = await TransactionService.GetTransactionByIdAsync(id);
+            if (transaction == null)
+            {
+                NavigationManager.NavigateTo("/counter");
+            }
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/counter");
+        }
+    }
+
+    private async Task HandleEditSubmit()
+    {
+        // Update the transaction in the backend (JSON file)
+        await TransactionService.UpdateTransactionAsync(transaction);
+
+        // Optionally, reload the updated transaction or transaction list from the service
+        var updatedTransaction = await TransactionService.GetTransactionByIdAsync(transaction.TransactionId);
+        
+        // Redirect to the transaction list or show updated details on the UI
+        if (updatedTransaction != null)
+        {
+            NavigationManager.NavigateTo("/counter");
+        }
+    }
+}

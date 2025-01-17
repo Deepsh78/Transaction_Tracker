@@ -10,7 +10,8 @@ namespace TransactionTracker.Services
     public interface IDebtService
     {
         Task<List<Debt>> GetPendingDebtsAsync();
-        //Task ClearDebtFromInflowAsync(Transaction creditTransaction);
-        
+        //Task ClearDebtAsync(Guid transactionId, decimal debtAmount);
+
+
     }
 }

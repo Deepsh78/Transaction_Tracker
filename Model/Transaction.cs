@@ -10,27 +10,33 @@ namespace TransactionTracker.Model
 {
     public class Transaction
     {
-        public Guid TransactionId { get; set; }
-        public string TransactionType { get; set; }
+        public Guid TransactionId { get; set; } = Guid.NewGuid();
+        [Required]
+
+        public string TransactionType { get; set; } // Debt, Debit, Credit
+
+        [Range(0, double.MaxValue, ErrorMessage = "Amount cannot be negative.")]
+
         public decimal Amount { get; set; }
-        public DateTime TransactionDate { get; set; } // Adding date field
+        [Required]
+
+        public DateTime TransactionDate { get; set; }
         public string Notes { get; set; }
+        public Guid? TagId { get; set; }
+        public Tags Tag { get; set; }
 
-        [ForeignKey("User")]
-        public string UserName { get; set; }
-        public Users User { get; set; }  // Navigation property
+        public string CustomTag { get; set; }
 
-        // Foreign key for Tag (TagId)
-        [ForeignKey("Tags")]
-        public string TagId { get; set; }
-        public Tags Tag { get; set; }  // Navigation property for Tag
-        public string CustomTag { get; set; }  
+        // Add the Source property to store the source of the transaction
+        public string Source { get; set; }
 
+        // Add the DueDate property for Debt transactions
+        public DateTime? DueDate { get; set; }
 
-        // Foreign key for TransactionHistory (HistoryId)
-        [ForeignKey("TransactionHistory")]
-        public string HistoryId { get; set; }
-        public TransactionHistory History { get; set; }  // Navigation property for TransactionHistory
+        // Other properties related to debts and inflows (Debt and Inflow collections can be added here)
+        public List<Debt> Debts { get; set; } = new List<Debt>();
+        public List<Inflow> Inflows { get; set; } = new List<Inflow>();
     }
+
 
 }

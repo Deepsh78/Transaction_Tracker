@@ -35,12 +35,7 @@ namespace TransactionTracker.Services
                 })
                 .ToList();
         }
+        
 
-        // Clear debt based on credit transactions
-        //    public async Task ClearDebtFromInflowAsync(Transaction creditTransaction)
-        //    {
-        //        await _transactionService.ClearDebtsFromTransactionAsync(creditTransaction.TransactionId, availableCredit);
-        //    }
-        //}
     }
 }

@@ -1,34 +1,84 @@
 ﻿@page "/dashboard"
 @using TransactionTracker.Model
 @inject ITransactionService TransactionService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject IUserService UserService
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-    .dashboard-container {
-        margin: 30px;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
     }
 
-    .filter-container {
+    .navbar {
         display: flex;
-        justify-content: flex-start;
+        justify-content: space-between;
         align-items: center;
-        gap: 10px;
+        padding: 15px 30px;
+        background-color: #ffffff;
+        color: #333;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+        .navbar .filters {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .navbar input {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .navbar button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+            .navbar button:hover {
+                background-color: #c82333;
+            }
+
+    .dashboard-container {
+        margin: 30px auto;
+        max-width: 1200px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
     }
 
     .statistics-box, .transactions-box {
         display: flex;
-        flex-direction: row;
-        gap: 20px;
         flex-wrap: wrap;
+        gap: 20px;
     }
 
     .box {
         flex: 1;
         min-width: 300px;
         padding: 20px;
-        background-color: #f8f9fa;
+        background-color: #ffffff;
         border-radius: 8px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
@@ -36,12 +86,16 @@
     .box-header {
         font-size: 20px;
         font-weight: bold;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        color: #333;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 5px;
     }
 
     .box-content {
         font-size: 16px;
         line-height: 1.6;
+        color: #555;
     }
 
     .transaction-container {
@@ -51,7 +105,7 @@
     }
 
     .transaction-card {
-        background-color: #ffffff;
+        background-color: #f9f9f9;
         padding: 15px;
         border-radius: 5px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -75,11 +129,14 @@
     .text-warning {
         color: #ffc107;
     }
+
+    canvas {
+        margin-top: 20px;
+    }
 </style>
 
-<div class="dashboard-container">
-    <!-- Date Range Filter -->
-    <div class="filter-container">
+<div class="navbar">
+    <div class="filters">
         <label for="startDate">Start Date:</label>
         <input type="date" id="startDate" @bind="startDate" />
 
@@ -88,6 +145,8 @@
 
         <button @onclick="ApplyFilters">Apply Filters</button>
     </div>
+    <button @onclick="Logout">Logout</button>
+</div>
 
     <!-- Statistics and Pending Debts -->
     <div class="statistics-box">
@@ -127,35 +186,20 @@
 
     <!-- Top Transactions -->
     <div class="transactions-box">
+        <!-- Highest Transactions (Bar Chart) -->
         <div class="box">
-            <div class="box-header">Top 5 Highest Transactions</div>
-            <div class="transaction-container">
-                @foreach (var transaction in transactions.OrderByDescending(t => t.Amount).Take(5))
-                {
-                    <div class="transaction-card">
-                        <p><strong>@transaction.TransactionType</strong></p>
-                        <p>@transaction.TransactionDate.ToString("yyyy-MM-dd")</p>
-                        <p>Amount: @transaction.Amount</p>
-                    </div>
-                }
-            </div>
+            <div class="box-header">Top 5 Highest Transactions (Bar Chart)</div>
+            <canvas id="highestTransactionsChart"></canvas>
         </div>
 
+        <!-- Lowest Transactions (Pie Chart) -->
         <div class="box">
-            <div class="box-header">Top 5 Lowest Transactions</div>
-            <div class="transaction-container">
-                @foreach (var transaction in transactions.OrderBy(t => t.Amount).Take(5))
-                {
-                    <div class="transaction-card">
-                        <p><strong>@transaction.TransactionType</strong></p>
-                        <p>@transaction.TransactionDate.ToString("yyyy-MM-dd")</p>
-                        <p>Amount: @transaction.Amount</p>
-                    </div>
-                }
-            </div>
+            <div class="box-header">Top 5 Lowest Transactions (Pie Chart)</div>
+            <canvas id="lowestTransactionsChart"></canvas>
         </div>
     </div>
-</div>
+
+
 
 @code {
     private List<Transaction> transactions = new List<Transaction>();
@@ -168,11 +212,26 @@
     private DateTime? startDate;
     private DateTime? endDate;
 
+    private string highestTransactionsJson;
+    private string lowestTransactionsJson;
+
     protected override async Task OnInitializedAsync()
     {
         transactions = await TransactionService.GetAllTransactionsAsync();
         CalculateStatistics();
         FilterPendingDebts();
+
+        // Prepare JSON data for charts
+        var highestTransactions = transactions.OrderByDescending(t => t.Amount).Take(5).Select(t => new { t.TransactionType, t.Amount });
+        var lowestTransactions = transactions.OrderBy(t => t.Amount).Take(5).Select(t => new { t.TransactionType, t.Amount });
+
+        highestTransactionsJson = System.Text.Json.JsonSerializer.Serialize(highestTransactions);
+        lowestTransactionsJson = System.Text.Json.JsonSerializer.Serialize(lowestTransactions);
+
+        // Re-render the charts using JS Interop
+        JSRuntime.InvokeVoidAsync("renderHighestTransactionsChart", highestTransactionsJson);
+        JSRuntime.InvokeVoidAsync("renderLowestTransactionsChart", lowestTransactionsJson);
+
     }
 
     private void ApplyFilters()
@@ -192,19 +251,40 @@
         transactions = filteredTransactions;
         CalculateStatistics();
         FilterPendingDebts();
+
+        // Re-render charts based on the filtered data
+        var highestTransactions = transactions.OrderByDescending(t => t.Amount).Take(5).Select(t => new { t.TransactionType, t.Amount });
+        var lowestTransactions = transactions.OrderBy(t => t.Amount).Take(5).Select(t => new { t.TransactionType, t.Amount });
+
+        highestTransactionsJson = System.Text.Json.JsonSerializer.Serialize(highestTransactions);
+        lowestTransactionsJson = System.Text.Json.JsonSerializer.Serialize(lowestTransactions);
+
+        // Re-render the charts using JS Interop
+        JSRuntime.InvokeVoidAsync("renderHighestTransactionsChart", highestTransactionsJson);
+        JSRuntime.InvokeVoidAsync("renderLowestTransactionsChart", lowestTransactionsJson);
     }
 
     private void CalculateStatistics()
     {
         totalCashInflows = transactions.Where(t => t.TransactionType == "Credit").Sum(t => t.Amount);
         totalCashOutflows = transactions.Where(t => t.TransactionType == "Debit").Sum(t => t.Amount);
-        totalDebts = transactions.Where(t => t.TransactionType == "Debt").Sum(t => t.Amount);
-        clearedDebts = transactions.Where(t => t.TransactionType == "Debt" && t.Amount == 0).Sum(t => t.Amount);
+        totalDebts= transactions.Count(t => t.TransactionType == "Debt");
+        clearedDebts = transactions
+            .Count(t => t.TransactionType == "Debt" && t.Notes== "Cleared");
         remainingDebts = totalDebts - clearedDebts;
     }
 
     private void FilterPendingDebts()
     {
-        pendingDebts = transactions.Where(t => t.TransactionType == "Debt" && t.Amount > 0).ToList();
+        pendingDebts = transactions.Where(t => t.TransactionType == "Debt" && t.Notes!="Cleared").ToList();
+    }
+
+    private async Task Logout()
+    {
+        // Clear user data from local storage (or wherever it's stored)
+        await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "currentUser");
+
+        // Redirect to login page
+        Navigation.NavigateTo("/");
     }
 }

@@ -1,0 +1,211 @@
+﻿@page "/counter"
+@using TransactionTracker.Model
+@inject ITransactionService TransactionService
+@inject ITagsService TagsService
+
+<h3>Transactions</h3>
+
+<EditForm Model="newTransaction" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-row">
+        <!-- Transaction Type Dropdown -->
+        <div class="form-group">
+            <label for="TransactionType" class="form-label">Transaction Type</label>
+            <select id="TransactionType" class="form-control" @bind="newTransaction.TransactionType">
+                <option value="">-- Select a Transaction Type --</option>
+                <option value="Debt">Debt</option>
+                <option value="Debit">Debit</option>
+                <option value="Credit">Credit</option>
+            </select>
+        </div>
+
+        <!-- Amount Field -->
+        <div class="form-group">
+            <label for="Amount" class="form-label">Amount</label>
+            <InputNumber id="Amount" class="form-control" @bind-Value="newTransaction.Amount" />
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Transaction Date Field -->
+        <div class="form-group">
+            <label for="TransactionDate" class="form-label">Transaction Date</label>
+            <InputDate id="TransactionDate" class="form-control" @bind-Value="newTransaction.TransactionDate" />
+        </div>
+
+        <!-- Notes Field -->
+        <div class="form-group">
+            <label for="Notes" class="form-label">Notes</label>
+            <InputText id="Notes" class="form-control" @bind-Value="newTransaction.Notes" />
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Tag Field -->
+        <div class="form-group">
+            <label for="Tag" class="form-label">Tag</label>
+            <select id="Tag" class="form-control" @bind="newTransaction.TagId">
+                <option value="">-- Select a Tag --</option>
+                @foreach (var tag in tagsList)
+                {
+                    <option value="@tag.TagId">@tag.TagName</option>
+                }
+            </select>
+        </div>
+
+        <!-- Custom Tag Field (conditional display) -->
+        <div class="form-group" style="display: @(newTransaction.TagId == null ? "block" : "none")">
+            <label for="CustomTag" class="form-label">Custom Tag</label>
+            <InputText id="CustomTag" class="form-control" @bind-Value="newTransaction.CustomTag" />
+        </div>
+    </div>
+
+    <div class="form-row" style="display: @(newTransaction.TransactionType == "Debt" ? "flex" : "none")">
+        <!-- Due Date Field (only for Debt) -->
+        <div class="form-group">
+            <label for="DueDate" class="form-label">Due Date</label>
+            <InputDate id="DueDate" class="form-control" @bind-Value="newTransaction.DueDate" />
+        </div>
+    </div>
+
+    <div class="form-row" style="display: @(newTransaction.TransactionType == "Debt" || newTransaction.TransactionType == "Debit" || newTransaction.TransactionType == "Credit" ? "flex" : "none")">
+        <!-- Source Field (for Debt, Debit, and Credit) -->
+        <div class="form-group">
+            <label for="Source" class="form-label">Source</label>
+            <InputText id="Source" class="form-control" @bind-Value="newTransaction.Source" />
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Add Transaction</button>
+</EditForm>
+
+@if (isSuccessMessageVisible)
+{
+    <div class="alert alert-success mt-3">
+        Transaction added successfully!
+    </div>
+}
+
+<style>
+    /* Overall Form Styling */
+    form {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 2rem;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Style the form title */
+    h3 {
+        text-align: center;
+        margin-bottom: 2rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+    }
+
+    /* Apply flexbox layout to align fields side by side */
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem; /* Space between columns */
+    }
+
+    /* Each form group */
+    .form-group {
+        flex: 1;
+        min-width: 220px; /* Minimum width for each field */
+    }
+
+    /* Label styles */
+    .form-label {
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+        display: block;
+        font-size: 1rem;
+        color: #555;
+    }
+
+    /* Input styling */
+    input, select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+        /* Input focus state */
+        input:focus, select:focus {
+            border-color: #007bff;
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+
+    /* Adjusted button styling */
+    button[type="submit"] {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem; /* Reduced font size */
+        font-weight: bold;
+        border-radius: 5px;
+        width: auto; /* Set the width to auto to avoid full width */
+        margin-top: 1.5rem; /* Add spacing between the form and the button */
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+        /* Hover effect for the submit button */
+        button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        /* Button when focused or active */
+        button[type="submit"]:focus {
+            outline: none;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+
+    /* Adjust for small screens */
+</style>
+
+@code {
+    private List<Tags> tagsList = new List<Tags>();  // List to hold predefined tags
+    private Transaction newTransaction = new Transaction();
+    private bool isSuccessMessageVisible = false;  // Flag to control the success message visibility
+
+    protected override async Task OnInitializedAsync()
+    {
+        tagsList = await TagsService.GetTagsAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (!string.IsNullOrEmpty(newTransaction.CustomTag))
+        {
+            // If the user has entered a custom tag, use it instead of the TagId
+            newTransaction.TagId = null;  // Clear the TagId since we're using a custom tag
+        }
+
+        await TransactionService.AddTransactionAsync(newTransaction);  // Add the transaction
+
+        // Show success message
+        isSuccessMessageVisible = true;
+
+        // Clear form fields after submission
+        newTransaction = new Transaction();  // Reset the model
+
+        // Reload tags if needed after clearing them
+        tagsList = await TagsService.GetTagsAsync();
+
+        // Hide success message after a short delay
+        await Task.Delay(3000);  // Delay for 3 seconds
+        isSuccessMessageVisible = false;
+    }
+}

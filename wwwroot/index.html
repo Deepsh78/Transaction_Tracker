@@ -24,6 +24,79 @@
     </div>
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Your Custom JS for Chart Rendering -->
+    <script>
+        let highestTransactionsChart; 
+        let lowestTransactionsChart;  
+
+        function renderHighestTransactionsChart(dataJson) {
+            const data = JSON.parse(dataJson);
+            const labels = data.map(t => t.TransactionType);
+            const amounts = data.map(t => t.Amount);
+
+            const ctx = document.getElementById('highestTransactionsChart').getContext('2d');
+            if (highestTransactionsChart) {
+                highestTransactionsChart.destroy(); 
+            }
+
+            highestTransactionsChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Amount',
+                        data: amounts,
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderLowestTransactionsChart(dataJson) {
+            const data = JSON.parse(dataJson);
+            const labels = data.map(t => t.TransactionType);
+            const amounts = data.map(t => t.Amount);
+
+            const ctx = document.getElementById('lowestTransactionsChart').getContext('2d');
+            if (lowestTransactionsChart) {
+                lowestTransactionsChart.destroy(); // Destroy the existing chart
+            }
+
+            lowestTransactionsChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Amount',
+                        data: amounts,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.5)',
+                            'rgba(54, 162, 235, 0.5)',
+                            'rgba(255, 206, 86, 0.5)',
+                            'rgba(75, 192, 192, 0.5)',
+                            'rgba(153, 102, 255, 0.5)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+    </script>
+
 
 </body>
 

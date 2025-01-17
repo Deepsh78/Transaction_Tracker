@@ -11,6 +11,11 @@ namespace TransactionTracker.Services
     {
         Task<List<Transaction>> GetAllTransactionsAsync();
         Task AddTransactionAsync(Transaction transaction);
-            
-        Task<DashboardSummary> GetDashboardSummaryAsync(DateTime? startDate, DateTime? endDate);    }
+        Task UpdateTransactionAsync(Transaction updatedTransaction);
+        Task DeleteTransactionAsync(Guid transactionId);
+        Task<DashboardSummary> GetDashboardSummaryAsync(DateTime? startDate, DateTime? endDate);
+        Task<Transaction> GetTransactionByIdAsync(Guid transactionId);
+        
+    }
+
 }
